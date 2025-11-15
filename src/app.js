@@ -39,8 +39,9 @@ async function start() {
 
     console.log("✅ Conectado a MongoDB");
 
-    app.listen(PORT, () =>
-      console.log(`🚀 Servidor ejecutándose en http://localhost:${PORT}`)
+    // ✅ Escuchar en todas las interfaces, no solo localhost
+    app.listen(PORT, "0.0.0.0", () =>
+      console.log(`🚀 Servidor ejecutándose en el puerto ${PORT}`)
     );
   } catch (err) {
     console.error("❌ Error de conexión:", err);
