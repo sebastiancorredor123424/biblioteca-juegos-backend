@@ -1,7 +1,6 @@
-// src/routes/games.js
-const express = require("express");
+import express from "express";
 const router = express.Router();
-const Game = require("../models/Game");
+import Game from "../models/Game.js";
 
 // 🟢 Obtener todos los juegos
 router.get("/", async (req, res) => {
@@ -63,4 +62,4 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

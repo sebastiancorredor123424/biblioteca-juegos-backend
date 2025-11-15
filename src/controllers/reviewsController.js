@@ -20,16 +20,50 @@ exports.listReviews = async (req, res) => {
 // Crear reseña
 exports.createReview = async (req, res) => {
   try {
-    const r = new Review(req.body);
+    const {
+      gameId,
+      userName,
+      score,
+      title = "",
+      body = "",
+    } = req.body;
+
+    if (!gameId || !userName || score === undefined) {
+      return res.status(400).json({ error: 'Faltan campos obligatorios (gameId, userName, score)' });
+    }
+
+    const r = new Review({
+      gameId,
+      userName,
+      score,
+      title,
+      body,
+      likes: 0,
+      replies: [],
+    });
+
     await r.save();
 
-    // recalcular promedio del juego
-    const reviews = await Review.find({ gameId: r.gameId });
-    const avg = reviews.length
-      ? reviews.reduce((s, x) => s + x.score, 0) / reviews.length
-      : 0;
+    // agregar referencia al juego
+    try {
+      await Game.findByIdAndUpdate(gameId, {
+        $push: { reviews: r._id },
+      });
+    } catch (err) {
+      console.warn('⚠️ No se pudo agregar la reseña a Game.reviews ->', err.message);
+    }
 
-    await Game.findByIdAndUpdate(r.gameId, { calificacion: avg });
+    // recalcular promedio del juego
+    try {
+      const reviews = await Review.find({ gameId });
+      const avg = reviews.length
+        ? reviews.reduce((s, x) => s + x.score, 0) / reviews.length
+        : 0;
+
+      await Game.findByIdAndUpdate(gameId, { calificacion: avg });
+    } catch (err) {
+      console.warn('⚠️ No se pudo recalcular promedio del juego ->', err.message);
+    }
 
     res.status(201).json(r);
   } catch (err) {
@@ -53,7 +87,17 @@ exports.updateReview = async (req, res) => {
 // Eliminar reseña
 exports.deleteReview = async (req, res) => {
   try {
-    await Review.findByIdAndDelete(req.params.id);
+    const r = await Review.findByIdAndDelete(req.params.id);
+
+    if (r) {
+      // quitar referencia del juego
+      try {
+        await Game.findByIdAndUpdate(r.gameId, { $pull: { reviews: r._id } });
+      } catch (err) {
+        console.warn('⚠️ No se pudo eliminar la referencia de Game.reviews ->', err.message);
+      }
+    }
+
     res.json({ ok: true });
   } catch (err) {
     console.error('❌ Error en deleteReview:', err);

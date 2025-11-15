@@ -1,21 +1,34 @@
 // src/models/Game.js
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const gameSchema = new mongoose.Schema(
   {
     titulo: { type: String, required: true },
-    genero: String,
-    plataforma: String,
-    imagen: String,
-    banner: String,
-    descripcion: String,
-    precio: Number,
-    descargas: Number,
+    genero: { type: String },
+    plataforma: { type: String },
+    imagen: { type: String },
+    banner: { type: String },
+    descripcion: { type: String },
+    precio: { type: Number },
+    descargas: { type: Number },
     completado: { type: Boolean, default: false },
     calificacion: { type: Number, min: 0, max: 5 },
-    reviews: [{ type: mongoose.Schema.Types.ObjectId, ref: "Review" }],
+
+    // 🔧 FIX: validación segura para evitar CastError en reviews
+    reviews: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Review",
+        validate: {
+          validator: (v) => mongoose.Types.ObjectId.isValid(v),
+          message: "ID de review inválido",
+        },
+      },
+    ],
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Game", gameSchema);
+const Game = mongoose.model("Game", gameSchema);
+
+export default Game;

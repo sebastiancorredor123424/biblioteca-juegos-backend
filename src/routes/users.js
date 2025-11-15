@@ -1,3 +1,4 @@
+// src/routes/users.js
 import express from "express";
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
@@ -10,15 +11,22 @@ const router = express.Router();
 ============================ */
 router.post("/register", async (req, res) => {
   try {
-    const { nombre, correo, password } = req.body;
+    const { nombre, correo, password, userName } = req.body;
 
-    const existe = await User.findOne({ correo });
-    if (existe) return res.status(400).json({ error: "⚠️ Correo ya registrado." });
+    if (!nombre || !correo || !password || !userName) {
+      return res.status(400).json({ error: "Faltan datos obligatorios." });
+    }
 
-    const salt = await bcrypt.genSalt(10);
-    const hash = await bcrypt.hash(password, salt);
+    const existeCorreo = await User.findOne({ correo });
+    if (existeCorreo)
+      return res.status(400).json({ error: "⚠️ Correo ya registrado." });
 
-    const user = new User({ nombre, correo, password: hash });
+    const existeUser = await User.findOne({ userName });
+    if (existeUser)
+      return res.status(400).json({ error: "⚠️ Nombre de usuario ya está en uso." });
+
+    // ❗ Ya NO encriptamos aquí (User.js lo hace automáticamente)
+    const user = new User({ nombre, correo, password, userName });
     await user.save();
 
     res.json({ message: "✅ Usuario creado con éxito", user });
@@ -41,12 +49,32 @@ router.post("/login", async (req, res) => {
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ error: "❌ Contraseña incorrecta." });
 
-    const token = jwt.sign({ id: user._id }, "secreto", { expiresIn: "1h" });
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || "secreto", {
+      expiresIn: "1h",
+    });
 
     res.json({ message: "✅ Inicio de sesión exitoso", token, user });
   } catch (err) {
     console.error("❌ Error en login:", err);
     res.status(500).json({ error: "Error al iniciar sesión" });
+  }
+});
+
+/* ============================
+   🔹 PERFIL DE USUARIO
+============================ */
+// Ruta que tu frontend necesita: /profile-data
+router.get("/:id/profile-data", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id)
+      .populate("wishlist")
+      .populate("favorites")
+      .populate("completedGames");
+    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+    res.json(user);
+  } catch (err) {
+    console.error("❌ Error obteniendo perfil:", err);
+    res.status(500).json({ error: "Error al obtener perfil" });
   }
 });
 
@@ -71,8 +99,11 @@ router.get("/:id/wishlist", async (req, res) => {
 router.post("/:id/wishlist", async (req, res) => {
   try {
     const { gameId } = req.body;
-    const user = await User.findById(req.params.id);
 
+    if (!gameId)
+      return res.status(400).json({ error: "Falta gameId" });
+
+    const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
 
     if (!Array.isArray(user.wishlist)) user.wishlist = [];
@@ -97,8 +128,6 @@ router.delete("/:id/wishlist/:gameId", async (req, res) => {
     const user = await User.findById(id);
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
 
-    if (!Array.isArray(user.wishlist)) user.wishlist = [];
-
     user.wishlist = user.wishlist.filter((j) => j.toString() !== gameId.toString());
     await user.save();
 
@@ -116,8 +145,7 @@ router.delete("/:id/wishlist/:gameId", async (req, res) => {
 // Obtener favoritos
 router.get("/:id/favorites", async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
-
+    const user = await User.findById(req.params.id).populate("favorites");
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
 
     res.json(user.favorites || []);
@@ -132,6 +160,9 @@ router.post("/:id/favorites", async (req, res) => {
   try {
     const { gameId } = req.body;
 
+    if (!gameId)
+      return res.status(400).json({ error: "Falta gameId" });
+
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
 
@@ -140,7 +171,9 @@ router.post("/:id/favorites", async (req, res) => {
     const exists = user.favorites.some((g) => g.toString() === gameId.toString());
 
     if (exists) {
-      user.favorites = user.favorites.filter((id) => id.toString() !== gameId.toString());
+      user.favorites = user.favorites.filter(
+        (id) => id.toString() !== gameId.toString()
+      );
     } else {
       user.favorites.push(gameId);
     }
@@ -160,14 +193,12 @@ router.post("/:id/favorites", async (req, res) => {
 
 /* ============================
    ✔ JUEGOS COMPLETADOS
-   (usamos completedGames en el schema)
 ============================ */
 
 // Obtener completados
 router.get("/:id/completed", async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
-
+    const user = await User.findById(req.params.id).populate("completedGames");
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
 
     res.json(user.completedGames || []);
@@ -181,17 +212,22 @@ router.get("/:id/completed", async (req, res) => {
 router.post("/:id/completed", async (req, res) => {
   try {
     const { gameId } = req.body;
+
+    if (!gameId)
+      return res.status(400).json({ error: "Falta gameId" });
+
     const user = await User.findById(req.params.id);
 
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
 
-    // asegurar que exista el array (compatibilidad con datos antiguos)
     if (!Array.isArray(user.completedGames)) user.completedGames = [];
 
     const exists = user.completedGames.some((g) => g.toString() === gameId.toString());
 
     if (exists) {
-      user.completedGames = user.completedGames.filter((g) => g.toString() !== gameId.toString());
+      user.completedGames = user.completedGames.filter(
+        (g) => g.toString() !== gameId.toString()
+      );
     } else {
       user.completedGames.push(gameId);
     }
@@ -213,7 +249,7 @@ router.post("/:id/completed", async (req, res) => {
    ⏱ HORAS JUGADAS (MAP)
 ============================ */
 
-// Obtener horas de un juego
+// Obtener horas
 router.get("/:id/hours/:gameId", async (req, res) => {
   try {
     const { id, gameId } = req.params;
@@ -221,13 +257,11 @@ router.get("/:id/hours/:gameId", async (req, res) => {
     const user = await User.findById(id);
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
 
-    // Si playedHours viene como objeto (datos antiguos), convertir a Map
     if (user.playedHours && !(user.playedHours instanceof Map)) {
       user.playedHours = new Map(Object.entries(user.playedHours || {}));
     }
 
     const hours = user.playedHours?.get(gameId) || 0;
-
     res.json({ hours });
   } catch (err) {
     console.error("❌ Error obteniendo horas:", err);
@@ -240,10 +274,12 @@ router.post("/:id/hours", async (req, res) => {
   try {
     const { gameId, hoursPlayed } = req.body;
 
+    if (!gameId)
+      return res.status(400).json({ error: "Falta gameId" });
+
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
 
-    // asegurar Map
     if (!user.playedHours) user.playedHours = new Map();
     if (!(user.playedHours instanceof Map)) {
       user.playedHours = new Map(Object.entries(user.playedHours || {}));

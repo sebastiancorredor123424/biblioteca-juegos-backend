@@ -1,22 +1,29 @@
-const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
+// src/models/User.js
+import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
 
 const userSchema = new mongoose.Schema(
   {
     nombre: { type: String, required: true },
+
     correo: { type: String, required: true, unique: true },
+
     password: { type: String, required: true },
+
+    userName: { type: String, required: true, unique: true, trim: true },
+
+    avatar: { type: String, default: null },
 
     // 💖 Lista de deseos (wishlist)
     wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: "Game" }],
 
-    // ⭐ Juegos favoritos
+    // ⭐ Favoritos
     favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: "Game" }],
 
-    // 🏁 Juegos completados (NUEVO)
+    // 🏁 Completados
     completedGames: [{ type: mongoose.Schema.Types.ObjectId, ref: "Game" }],
 
-    // ⏱️ Horas jugadas por juego
+    // ⏱ Horas jugadas
     playedHours: {
       type: Map,
       of: Number,
@@ -26,7 +33,7 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// 🔐 Encriptar contraseña antes de guardar
+// 🔐 Encriptar contraseña (solo si cambia o es nueva)
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
 
@@ -39,4 +46,5 @@ userSchema.pre("save", async function (next) {
   }
 });
 
-module.exports = mongoose.model("User", userSchema);
+const User = mongoose.model("User", userSchema);
+export default User;
