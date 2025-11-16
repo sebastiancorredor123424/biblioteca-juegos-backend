@@ -19,7 +19,23 @@ mongoose.set("strictQuery", false);
 
 app.use(helmet());
 app.use(morgan("dev"));
-app.use(cors({ origin: "*" }));
+
+// ❗ ESTA ERA LA PARTE MAL: CORS estaba demasiado simple
+// 🔥 CORS actualizado para que funcione con Railway + GitHub Pages
+app.use(cors({
+  origin: [
+    "https://sebastiancorredor123424.github.io", 
+    "http://localhost:5173",
+    "http://localhost:3000"
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
+}));
+
+// 🔥 Manejo global de preflight OPTIONS → evita el error 405
+app.options("*", cors());
+
 app.use(express.json({ limit: "5mb" }));
 
 // 🔹 Rutas API
