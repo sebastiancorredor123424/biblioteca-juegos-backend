@@ -25,7 +25,6 @@ router.post("/register", async (req, res) => {
     if (existeUser)
       return res.status(400).json({ error: "⚠️ Nombre de usuario ya está en uso." });
 
-    // ❗ Ya NO encriptamos aquí (User.js lo hace automáticamente)
     const user = new User({ nombre, correo, password, userName });
     await user.save();
 
@@ -44,14 +43,18 @@ router.post("/login", async (req, res) => {
     const { correo, password } = req.body;
 
     const user = await User.findOne({ correo });
-    if (!user) return res.status(404).json({ error: "❌ Usuario no encontrado." });
+    if (!user)
+      return res.status(404).json({ error: "❌ Usuario no encontrado." });
 
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid) return res.status(401).json({ error: "❌ Contraseña incorrecta." });
+    if (!valid)
+      return res.status(401).json({ error: "❌ Contraseña incorrecta." });
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || "secreto", {
-      expiresIn: "1h",
-    });
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET || "secreto",
+      { expiresIn: "1h" }
+    );
 
     res.json({ message: "✅ Inicio de sesión exitoso", token, user });
   } catch (err) {
@@ -63,14 +66,16 @@ router.post("/login", async (req, res) => {
 /* ============================
    🔹 PERFIL DE USUARIO
 ============================ */
-// Ruta que tu frontend necesita: /profile-data
 router.get("/:id/profile-data", async (req, res) => {
   try {
     const user = await User.findById(req.params.id)
       .populate("wishlist")
       .populate("favorites")
       .populate("completedGames");
-    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+
+    if (!user)
+      return res.status(404).json({ error: "Usuario no encontrado" });
+
     res.json(user);
   } catch (err) {
     console.error("❌ Error obteniendo perfil:", err);
@@ -86,7 +91,8 @@ router.get("/:id/profile-data", async (req, res) => {
 router.get("/:id/wishlist", async (req, res) => {
   try {
     const user = await User.findById(req.params.id).populate("wishlist");
-    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+    if (!user)
+      return res.status(404).json({ error: "Usuario no encontrado" });
 
     res.json(user.wishlist || []);
   } catch (err) {
@@ -104,16 +110,20 @@ router.post("/:id/wishlist", async (req, res) => {
       return res.status(400).json({ error: "Falta gameId" });
 
     const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+    if (!user)
+      return res.status(404).json({ error: "Usuario no encontrado" });
 
     if (!Array.isArray(user.wishlist)) user.wishlist = [];
 
-    if (!user.wishlist.some((g) => g.toString() === gameId.toString())) {
+    if (!user.wishlist.some(g => g.toString() === gameId.toString())) {
       user.wishlist.push(gameId);
       await user.save();
     }
 
-    res.json({ message: "Juego añadido a la wishlist", wishlist: user.wishlist });
+    res.json({
+      message: "Juego añadido a la wishlist",
+      wishlist: user.wishlist
+    });
   } catch (err) {
     console.error("❌ Error al agregar juego:", err);
     res.status(500).json({ error: "Error al agregar juego a wishlist" });
@@ -126,12 +136,18 @@ router.delete("/:id/wishlist/:gameId", async (req, res) => {
     const { id, gameId } = req.params;
 
     const user = await User.findById(id);
-    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+    if (!user)
+      return res.status(404).json({ error: "Usuario no encontrado" });
 
-    user.wishlist = user.wishlist.filter((j) => j.toString() !== gameId.toString());
+    user.wishlist = user.wishlist.filter(
+      j => j.toString() !== gameId.toString()
+    );
     await user.save();
 
-    res.json({ message: "Juego eliminado de la wishlist", wishlist: user.wishlist });
+    res.json({
+      message: "Juego eliminado de la wishlist",
+      wishlist: user.wishlist
+    });
   } catch (err) {
     console.error("❌ Error al eliminar juego:", err);
     res.status(500).json({ error: "Error al eliminar de wishlist" });
@@ -146,7 +162,8 @@ router.delete("/:id/wishlist/:gameId", async (req, res) => {
 router.get("/:id/favorites", async (req, res) => {
   try {
     const user = await User.findById(req.params.id).populate("favorites");
-    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+    if (!user)
+      return res.status(404).json({ error: "Usuario no encontrado" });
 
     res.json(user.favorites || []);
   } catch (err) {
@@ -164,15 +181,16 @@ router.post("/:id/favorites", async (req, res) => {
       return res.status(400).json({ error: "Falta gameId" });
 
     const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+    if (!user)
+      return res.status(404).json({ error: "Usuario no encontrado" });
 
     if (!Array.isArray(user.favorites)) user.favorites = [];
 
-    const exists = user.favorites.some((g) => g.toString() === gameId.toString());
+    const exists = user.favorites.some(g => g.toString() === gameId.toString());
 
     if (exists) {
       user.favorites = user.favorites.filter(
-        (id) => id.toString() !== gameId.toString()
+        id => id.toString() !== gameId.toString()
       );
     } else {
       user.favorites.push(gameId);
@@ -199,7 +217,8 @@ router.post("/:id/favorites", async (req, res) => {
 router.get("/:id/completed", async (req, res) => {
   try {
     const user = await User.findById(req.params.id).populate("completedGames");
-    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+    if (!user)
+      return res.status(404).json({ error: "Usuario no encontrado" });
 
     res.json(user.completedGames || []);
   } catch (err) {
@@ -218,15 +237,18 @@ router.post("/:id/completed", async (req, res) => {
 
     const user = await User.findById(req.params.id);
 
-    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+    if (!user)
+      return res.status(404).json({ error: "Usuario no encontrado" });
 
     if (!Array.isArray(user.completedGames)) user.completedGames = [];
 
-    const exists = user.completedGames.some((g) => g.toString() === gameId.toString());
+    const exists = user.completedGames.some(
+      g => g.toString() === gameId.toString()
+    );
 
     if (exists) {
       user.completedGames = user.completedGames.filter(
-        (g) => g.toString() !== gameId.toString()
+        g => g.toString() !== gameId.toString()
       );
     } else {
       user.completedGames.push(gameId);
@@ -255,8 +277,10 @@ router.get("/:id/hours/:gameId", async (req, res) => {
     const { id, gameId } = req.params;
 
     const user = await User.findById(id);
-    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+    if (!user)
+      return res.status(404).json({ error: "Usuario no encontrado" });
 
+    // Convertir si viene como objeto
     if (user.playedHours && !(user.playedHours instanceof Map)) {
       user.playedHours = new Map(Object.entries(user.playedHours || {}));
     }
@@ -278,7 +302,8 @@ router.post("/:id/hours", async (req, res) => {
       return res.status(400).json({ error: "Falta gameId" });
 
     const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+    if (!user)
+      return res.status(404).json({ error: "Usuario no encontrado" });
 
     if (!user.playedHours) user.playedHours = new Map();
     if (!(user.playedHours instanceof Map)) {
