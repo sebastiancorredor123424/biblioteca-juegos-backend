@@ -11,10 +11,14 @@ const router = express.Router();
 ============================ */
 router.post("/register", async (req, res) => {
   try {
-    const { nombre, correo, password, userName, avatar } = req.body;
+    const { nombre, correo, password, confirmPassword, userName, avatar } = req.body;
 
-    if (!nombre || !correo || !password || !userName) {
+    if (!nombre || !correo || !password || !confirmPassword || !userName) {
       return res.status(400).json({ error: "Faltan datos obligatorios." });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({ error: "❌ La contraseña y la confirmación no coinciden." });
     }
 
     const existeCorreo = await User.findOne({ correo });
@@ -26,7 +30,7 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ error: "⚠️ Nombre de usuario ya está en uso." });
 
     // Usar avatar enviado o dejar que el modelo ponga el valor por defecto
-    const user = new User({ nombre, correo, password, userName, avatar });
+    const user = new User({ nombre, correo, password, confirmPassword, userName, avatar });
     await user.save();
 
     res.json({ message: "✅ Usuario creado con éxito", user });
