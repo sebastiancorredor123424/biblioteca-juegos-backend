@@ -7,7 +7,7 @@ import helmet from "helmet";
 import dotenv from "dotenv";
 dotenv.config();
 
-// Rutas (asegúrate de que existen)
+// Rutas
 import gamesRoutes from "./routes/games.js";
 import reviewsRoutes from "./routes/reviews.js";
 import userRoutes from "./routes/users.js";
@@ -22,12 +22,23 @@ mongoose.set("strictQuery", false);
 app.use(helmet());
 app.use(morgan("dev"));
 
-// CORS: si usas tokens en localStorage, origin: '*' está bien.
-// Si usas cookies/credenciales, reemplaza '*' por tu origen (ej: 'https://sebastiancorredor123424.github.io')
-// y añade { credentials: true }.
-app.use(cors({ origin: "*" }));
+/* ===============================
+   ✅ CORS CONFIGURADO CORRECTAMENTE
+   Funciona con GitHub Pages
+   Permite JSON, POST, OPTIONS, etc.
+================================ */
+app.use(
+  cors({
+    origin: "https://sebastiancorredor123424.github.io",
+    methods: "GET,POST,PUT,DELETE,PATCH",
+    allowedHeaders: "Content-Type,Authorization",
+  })
+);
 
-// Parseo JSON (limite razonable)
+// Manejo del preflight OPTIONS
+app.options("*", cors());
+
+// Parseo JSON
 app.use(express.json({ limit: "5mb" }));
 
 // --- RUTAS DEL API ---
@@ -40,16 +51,15 @@ app.get("/api/health", (req, res) =>
   res.json({ ok: true, message: "Servidor activo", ts: Date.now() })
 );
 
-// Manejo de rutas no encontradas (devuelve JSON en vez de HTML)
+// Manejo de rutas no encontradas (solo API)
 app.use((req, res, next) => {
   if (req.path.startsWith("/api/")) {
     return res.status(404).json({ error: "Endpoint API no encontrado" });
   }
-  // para otras rutas (si sirves un front desde el backend) -> next()
   next();
 });
 
-// Manejo básico de errores (para devolver JSON en vez de HTML)
+// Manejo de errores generales
 app.use((err, req, res, next) => {
   console.error("❌ Error interno:", err);
   if (res.headersSent) return next(err);
