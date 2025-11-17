@@ -15,43 +15,39 @@ import userRoutes from "./routes/users.js";
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// Mejor práctica mongoose
+// Mongoose
 mongoose.set("strictQuery", false);
 
-// Middlewares básicos
+// Middlewares
 app.use(helmet());
 app.use(morgan("dev"));
 
-/* ===============================
-   ✅ CORS CONFIGURADO CORRECTAMENTE
-   Funciona con GitHub Pages
-   Permite JSON, POST, OPTIONS, etc.
-================================ */
+// CORS CORRECTO PARA PRODUCTION
 app.use(
   cors({
     origin: "https://sebastiancorredor123424.github.io",
-    methods: "GET,POST,PUT,DELETE,PATCH",
-    allowedHeaders: "Content-Type,Authorization",
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-// Manejo del preflight OPTIONS
+// Necesario para preflight OPTIONS
 app.options("*", cors());
 
-// Parseo JSON
+// JSON parser
 app.use(express.json({ limit: "5mb" }));
 
-// --- RUTAS DEL API ---
+// Rutas API
 app.use("/api/games", gamesRoutes);
 app.use("/api/reviews", reviewsRoutes);
 app.use("/api/users", userRoutes);
 
-// Ruta de prueba / health check
+// Health check
 app.get("/api/health", (req, res) =>
   res.json({ ok: true, message: "Servidor activo", ts: Date.now() })
 );
 
-// Manejo de rutas no encontradas (solo API)
+// Rutas no encontradas
 app.use((req, res, next) => {
   if (req.path.startsWith("/api/")) {
     return res.status(404).json({ error: "Endpoint API no encontrado" });
@@ -59,7 +55,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Manejo de errores generales
+// Manejo de errores
 app.use((err, req, res, next) => {
   console.error("❌ Error interno:", err);
   if (res.headersSent) return next(err);
@@ -68,7 +64,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Conexión a MongoDB y arranque del servidor
+// Conexión Mongo + inicio del servidor
 async function start() {
   try {
     const mongoUri = process.env.MONGODB_URI;
