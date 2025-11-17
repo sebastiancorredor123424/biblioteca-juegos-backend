@@ -1,4 +1,3 @@
-// src/app.js
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
@@ -15,72 +14,80 @@ import userRoutes from "./routes/users.js";
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// Mongoose
-mongoose.set("strictQuery", false);
-
-// Middlewares
-app.use(helmet());
-app.use(morgan("dev"));
-
-// CORS CORRECTO PARA PRODUCTION
+// -------------------------
+// 🔒 CORS CONFIG SEGURO
+// -------------------------
 app.use(
   cors({
     origin: "https://sebastiancorredor123424.github.io",
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-// Necesario para preflight OPTIONS
-app.options("*", cors());
-
-// JSON parser
+// -------------------------
+// 🔧 Middlewares básicos
+// -------------------------
+app.use(helmet());
+app.use(morgan("dev"));
 app.use(express.json({ limit: "5mb" }));
 
-// Rutas API
+// -------------------------
+// 📌 Rutas API
+// -------------------------
 app.use("/api/games", gamesRoutes);
 app.use("/api/reviews", reviewsRoutes);
 app.use("/api/users", userRoutes);
 
-// Health check
-app.get("/api/health", (req, res) =>
-  res.json({ ok: true, message: "Servidor activo", ts: Date.now() })
-);
-
-// Rutas no encontradas
-app.use((req, res, next) => {
-  if (req.path.startsWith("/api/")) {
-    return res.status(404).json({ error: "Endpoint API no encontrado" });
-  }
-  next();
-});
-
-// Manejo de errores
-app.use((err, req, res, next) => {
-  console.error("❌ Error interno:", err);
-  if (res.headersSent) return next(err);
-  res.status(err.status || 500).json({
-    error: err.message || "Error interno del servidor",
+// -------------------------
+// ❤️ Health check
+// -------------------------
+app.get("/api/health", (req, res) => {
+  res.json({
+    ok: true,
+    message: "Servidor activo",
+    ts: Date.now(),
   });
 });
 
-// Conexión Mongo + inicio del servidor
+// -------------------------
+// ❌ Manejo de rutas inválidas
+// -------------------------
+app.use((req, res) => {
+  if (req.path.startsWith("/api/")) {
+    return res.status(404).json({ error: "Endpoint API no encontrado" });
+  }
+  res.status(404).send("Página no encontrada");
+});
+
+// -------------------------
+// 🔥 Manejo de errores
+// -------------------------
+app.use((err, req, res, next) => {
+  console.error("❌ Error interno:", err);
+  res.status(500).json({ error: "Error interno del servidor" });
+});
+
+// -------------------------
+// 🚀 Conexión a Mongo + servidor
+// -------------------------
 async function start() {
   try {
     const mongoUri = process.env.MONGODB_URI;
+
     if (!mongoUri) {
-      console.error("❌ Falta la variable de entorno MONGODB_URI");
+      console.error("❌ Falta MONGODB_URI en .env");
       process.exit(1);
     }
 
     await mongoose.connect(mongoUri);
-    console.log("✅ Conectado a MongoDB");
+    console.log("✅ Conectado a MongoDB Atlas");
 
     app.listen(PORT, "0.0.0.0", () =>
-      console.log(`🚀 Servidor ejecutándose en el puerto ${PORT}`)
+      console.log(`🚀 Servidor ejecutándose en puerto ${PORT}`)
     );
   } catch (err) {
-    console.error("❌ Error de conexión o arranque:", err);
+    console.error("❌ Error al iniciar backend:", err);
     process.exit(1);
   }
 }
