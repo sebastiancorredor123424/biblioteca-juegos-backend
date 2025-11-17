@@ -11,7 +11,7 @@ const router = express.Router();
 ============================ */
 router.post("/register", async (req, res) => {
   try {
-    const { nombre, correo, password, userName } = req.body;
+    const { nombre, correo, password, userName, avatar } = req.body;
 
     if (!nombre || !correo || !password || !userName) {
       return res.status(400).json({ error: "Faltan datos obligatorios." });
@@ -25,7 +25,8 @@ router.post("/register", async (req, res) => {
     if (existeUser)
       return res.status(400).json({ error: "⚠️ Nombre de usuario ya está en uso." });
 
-    const user = new User({ nombre, correo, password, userName });
+    // Usar avatar enviado o dejar que el modelo ponga el valor por defecto
+    const user = new User({ nombre, correo, password, userName, avatar });
     await user.save();
 
     res.json({ message: "✅ Usuario creado con éxito", user });

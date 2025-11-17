@@ -12,7 +12,10 @@ const userSchema = new mongoose.Schema(
 
     userName: { type: String, required: true, unique: true, trim: true },
 
-    avatar: { type: String, default: null },
+    avatar: { 
+      type: String, 
+      default: "https://www.futwiz.com/assets/img/fifa18/careerfaces/158023.png" 
+    },
 
     // 💖 Lista de deseos (wishlist)
     wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: "Game" }],
